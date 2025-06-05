@@ -1,0 +1,146 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6",
+    "name": "Memory Journal - Media",
+    "description": "Media upload endpoints for Memory Journal App",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Upload Media",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "/path/to/your/image.jpg"
+            },
+            {
+              "key": "caption",
+              "value": "My test image",
+              "type": "text"
+            },
+            {
+              "key": "journalId",
+              "value": "{{journal_id}}",
+              "type": "text",
+              "disabled": true
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/media",
+          "host": ["{{base_url}}"],
+          "path": ["api", "media"]
+        },
+        "description": "Upload a media file (image or audio)"
+      },
+      "response": []
+    },
+    {
+      "name": "Get All Media",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/media?page=1&limit=20",
+          "host": ["{{base_url}}"],
+          "path": ["api", "media"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            },
+            {
+              "key": "type",
+              "value": "image",
+              "disabled": true
+            },
+            {
+              "key": "journalId",
+              "value": "{{journal_id}}",
+              "disabled": true
+            }
+          ]
+        },
+        "description": "Get all media files with optional filters"
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Media",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/media/{{media_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "media", "{{media_id}}"]
+        },
+        "description": "Delete a media file"
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "journal_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "media_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

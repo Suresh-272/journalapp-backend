@@ -1,0 +1,184 @@
+{
+  "info": {
+    "_postman_id": "f6d9e8c7-b5a4-3c2d-1e0f-9a8b7c6d5e4f",
+    "name": "Memory Journal - Journal Entries",
+    "description": "Journal entry endpoints for Memory Journal App",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Journal Entry",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"My First Journal Entry\",\n  \"content\": \"Today was a great day! I felt really happy and accomplished a lot of tasks.\",\n  \"mood\": \"happy\",\n  \"tags\": [\"work\", \"productivity\"],\n  \"location\": \"Home Office\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/journals",
+          "host": ["{{base_url}}"],
+          "path": ["api", "journals"]
+        },
+        "description": "Create a new journal entry"
+      },
+      "response": []
+    },
+    {
+      "name": "Get All Journal Entries",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/journals?page=1&limit=10",
+          "host": ["{{base_url}}"],
+          "path": ["api", "journals"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            },
+            {
+              "key": "mood",
+              "value": "happy",
+              "disabled": true
+            },
+            {
+              "key": "tags",
+              "value": "work,productivity",
+              "disabled": true
+            },
+            {
+              "key": "startDate",
+              "value": "2023-01-01",
+              "disabled": true
+            },
+            {
+              "key": "endDate",
+              "value": "2023-12-31",
+              "disabled": true
+            }
+          ]
+        },
+        "description": "Get all journal entries with optional filters"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Single Journal Entry",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/journals/{{journal_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "journals", "{{journal_id}}"]
+        },
+        "description": "Get a single journal entry by ID"
+      },
+      "response": []
+    },
+    {
+      "name": "Update Journal Entry",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Updated Journal Entry\",\n  \"content\": \"I've updated this journal entry with new content.\",\n  \"mood\": \"excited\",\n  \"tags\": [\"update\", \"journal\"],\n  \"location\": \"Coffee Shop\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/journals/{{journal_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "journals", "{{journal_id}}"]
+        },
+        "description": "Update an existing journal entry"
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Journal Entry",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/journals/{{journal_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "journals", "{{journal_id}}"]
+        },
+        "description": "Delete a journal entry"
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "journal_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

@@ -1,0 +1,176 @@
+{
+  "info": {
+    "_postman_id": "z1x2c3v4-b5n6-m7k8-j9h0-g1f2d3s4a5p6",
+    "name": "Memory Journal - Reminders",
+    "description": "Reminder endpoints for Memory Journal App",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Reminder",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Daily Journal Reminder\",\n  \"description\": \"Don't forget to write in your journal today!\",\n  \"reminderDate\": \"2023-12-01T20:00:00.000Z\",\n  \"isRecurring\": true,\n  \"recurringPattern\": \"daily\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/reminders",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reminders"]
+        },
+        "description": "Create a new reminder"
+      },
+      "response": []
+    },
+    {
+      "name": "Get All Reminders",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/reminders",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reminders"],
+          "query": [
+            {
+              "key": "isActive",
+              "value": "true",
+              "disabled": true
+            },
+            {
+              "key": "isRecurring",
+              "value": "true",
+              "disabled": true
+            },
+            {
+              "key": "startDate",
+              "value": "2023-01-01",
+              "disabled": true
+            },
+            {
+              "key": "endDate",
+              "value": "2023-12-31",
+              "disabled": true
+            }
+          ]
+        },
+        "description": "Get all reminders with optional filters"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Single Reminder",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/reminders/{{reminder_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reminders", "{{reminder_id}}"]
+        },
+        "description": "Get a single reminder by ID"
+      },
+      "response": []
+    },
+    {
+      "name": "Update Reminder",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Updated Reminder Title\",\n  \"description\": \"Updated reminder description\",\n  \"isActive\": true,\n  \"isRecurring\": false\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/reminders/{{reminder_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reminders", "{{reminder_id}}"]
+        },
+        "description": "Update an existing reminder"
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Reminder",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/reminders/{{reminder_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reminders", "{{reminder_id}}"]
+        },
+        "description": "Delete a reminder"
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reminder_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
