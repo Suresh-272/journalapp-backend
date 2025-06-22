@@ -5,15 +5,15 @@ const User = require('../models/User');
 // @access  Public
 exports.register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, mobileno, password } = req.body;
 
-    // Check if user exists
-    let user = await User.findOne({ email });
+    // Check if user exists by email or mobile number
+    let user = await User.findOne({ $or: [{ email }, { mobileno }] });
 
     if (user) {
       return res.status(400).json({
         success: false,
-        error: 'User already exists'
+        error: 'User already exists with this email or mobile number'
       });
     }
 
@@ -21,6 +21,7 @@ exports.register = async (req, res) => {
     user = await User.create({
       name,
       email,
+      mobileno,
       password
     });
 
@@ -39,23 +40,23 @@ exports.register = async (req, res) => {
 // @access  Public
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { mobileno, password } = req.body;
 
-    // Validate email & password
-    if (!email || !password) {
+    // Validate mobileno & password
+    if (!mobileno || !password) {
       return res.status(400).json({
         success: false,
-        error: 'Please provide an email and password'
+        error: 'Please provide a mobile number and password',
       });
     }
 
     // Check for user
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ mobileno }).select('+password');
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid credentials'
+        error: 'Invalid credentials',
       });
     }
 
@@ -65,7 +66,7 @@ exports.login = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid credentials'
+        error: 'Invalid credentials',
       });
     }
 
@@ -74,7 +75,7 @@ exports.login = async (req, res) => {
     console.error(err);
     res.status(500).json({
       success: false,
-      error: 'Server Error'
+      error: 'Server Error',
     });
   }
 };

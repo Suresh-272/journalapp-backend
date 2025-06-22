@@ -18,6 +18,15 @@ const UserSchema = new mongoose.Schema({
       'Please add a valid email'
     ]
   },
+  mobileno: {
+    type: String,
+    required: [true, 'Please add a mobile number'],
+    unique: true,
+    // match: [
+    //   /^[0-9]{10}$/,
+    //   'Please add a valid 10-digit mobile number'
+    // ]
+  },
   password: {
     type: String,
     required: [true, 'Please add a password'],
