@@ -11,6 +11,11 @@ const JournalSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please add content'],
   },
+  category: {
+    type: String,
+    enum: ['personal', 'professional'],
+    required: [true, 'Please specify category as personal or professional']
+  },
   mood: {
     type: String,
     enum: ['happy', 'sad', 'angry', 'anxious', 'neutral', 'excited', 'calm', 'other'],
@@ -39,7 +44,8 @@ const JournalSchema = new mongoose.Schema({
   }
 });
 
-// Add index for better query performance
+// Add indexes for better query performance
 JournalSchema.index({ user: 1, createdAt: -1 });
+JournalSchema.index({ user: 1, category: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Journal', JournalSchema);

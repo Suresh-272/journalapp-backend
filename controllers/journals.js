@@ -1,4 +1,7 @@
 const Journal = require('../models/Journal');
+const Media = require('../models/Media');
+const cloudinary = require('../config/cloudinary');
+const fs = require('fs');
 
 // @desc    Create new journal entry
 // @route   POST /api/journals
@@ -200,6 +203,90 @@ exports.deleteJournal = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
+    res.status(500).json({
+      success: false,
+      error: 'Server Error'
+    });
+  }
+};
+
+// @desc    Create journal with media
+// @route   POST /api/journals/with-media
+// @access  Private
+exports.createJournalWithMedia = async (req, res) => {
+  try {
+    // Add user to req.body
+    req.body.user = req.user.id;
+    
+    // Extract journal data from request body
+    const { title, content, mood, tags, location, category } = req.body;
+    
+    // Create journal entry
+    const journal = await Journal.create({
+      title,
+      content,
+      category: category || 'personal', // Add category field
+      mood: mood || 'neutral',
+      tags: tags ? JSON.parse(tags) : [],
+      location,
+      user: req.user.id
+    });
+    
+    const mediaIds = [];
+    
+    // Process uploaded files if any
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        // Determine media type
+        const type = file.mimetype.startsWith('image') ? 'image' : 'audio';
+        
+        // Upload to cloudinary
+        const result = await cloudinary.uploader.upload(file.path, {
+          resource_type: type === 'image' ? 'image' : 'video',
+          folder: `memory-journal/${req.user.id}/${type}s`
+        });
+        
+        // Create media in database
+        const media = await Media.create({
+          type,
+          url: result.secure_url,
+          public_id: result.public_id,
+          caption: '',
+          user: req.user.id,
+          journal: journal._id
+        });
+        
+        mediaIds.push(media._id);
+        
+        // Remove file from server after upload
+        fs.unlinkSync(file.path);
+      }
+      
+      // Update journal with media IDs
+      if (mediaIds.length > 0) {
+        await Journal.findByIdAndUpdate(journal._id, {
+          media: mediaIds
+        });
+      }
+    }
+    
+    // Get the updated journal with media
+    const updatedJournal = await Journal.findById(journal._id).populate('media');
+    
+    res.status(201).json({
+      success: true,
+      data: updatedJournal
+    });
+  } catch (err) {
+    console.error(err);
+    // Remove files from server if there's an error
+    if (req.files) {
+      req.files.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
+    }
     res.status(500).json({
       success: false,
       error: 'Server Error'

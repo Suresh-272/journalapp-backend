@@ -4,16 +4,21 @@ const {
   getJournal,
   createJournal,
   updateJournal,
-  deleteJournal
+  deleteJournal,
+  createJournalWithMedia
 } = require('../controllers/journals');
 
 const { protect } = require('../middleware/auth');
+const { upload } = require('../controllers/media');
 
 const router = express.Router();
 
 router.route('/')
   .get(protect, getJournals)
   .post(protect, createJournal);
+
+router.route('/with-media')
+  .post(protect, upload.array('files', 10), createJournalWithMedia);
 
 router.route('/:id')
   .get(protect, getJournal)
