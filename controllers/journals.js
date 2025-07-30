@@ -11,6 +11,19 @@ exports.createJournal = async (req, res) => {
     // Add user to req.body
     req.body.user = req.user.id;
     
+    // Validate category if provided
+    if (req.body.category && !['personal', 'professional'].includes(req.body.category)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Category must be either "personal" or "professional"'
+      });
+    }
+    
+    // Set default category if not provided
+    if (!req.body.category) {
+      req.body.category = 'personal';
+    }
+    
     const journal = await Journal.create(req.body);
 
     res.status(201).json({
@@ -18,10 +31,10 @@ exports.createJournal = async (req, res) => {
       data: journal
     });
   } catch (err) {
-    console.error(err);
+    console.error('Error creating journal:', err);
     res.status(500).json({
       success: false,
-      error: 'Server Error'
+      error: err.message || 'Server Error'
     });
   }
 };
@@ -218,17 +231,25 @@ exports.createJournalWithMedia = async (req, res) => {
     // Add user to req.body
     req.body.user = req.user.id;
     
-    // Extract journal data from request body
+    // Extract and validate journal data from request body
     const { title, content, mood, tags, location, category } = req.body;
     
-    // Create journal entry
+    // Validate category
+    if (!category || !['personal', 'professional'].includes(category)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Category must be either "personal" or "professional"'
+      });
+    }
+    
+    // Create journal entry with proper category
     const journal = await Journal.create({
-      title,
-      content,
-      category: category || 'personal', // Add category field
+      title: title || 'Untitled Entry',
+      content: content || '',
+      category: category, // Ensure category is properly set
       mood: mood || 'neutral',
       tags: tags ? JSON.parse(tags) : [],
-      location,
+      location: location || '',
       user: req.user.id
     });
     
@@ -236,50 +257,78 @@ exports.createJournalWithMedia = async (req, res) => {
     
     // Process uploaded files if any
     if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        // Determine media type
-        const type = file.mimetype.startsWith('image') ? 'image' : 'audio';
-        
-        // Upload to cloudinary
-        const result = await cloudinary.uploader.upload(file.path, {
-          resource_type: type === 'image' ? 'image' : 'video',
-          folder: `memory-journal/${req.user.id}/${type}s`
-        });
-        
-        // Create media in database
+      // Process files in parallel for better performance
+      const mediaPromises = req.files.map(async (file) => {
+        try {
+          // Determine media type
+          const type = file.mimetype.startsWith('image') ? 'image' : 'audio';
+          
+          // Upload to cloudinary with optimization
+          const result = await cloudinary.uploader.upload(file.path, {
+            resource_type: type === 'image' ? 'image' : 'video',
+            folder: `memory-journal/${req.user.id}/${type}s`,
+            transformation: type === 'image' ? [
+              { quality: 'auto:good', fetch_format: 'auto' },
+              { width: 1200, height: 1200, crop: 'limit' }
+            ] : undefined,
+            eager: type === 'image' ? [
+              { width: 300, height: 300, crop: 'thumb' },
+              { width: 600, height: 600, crop: 'limit' }
+            ] : undefined
+          });
+          
+                  // Create media in database with enhanced data
         const media = await Media.create({
           type,
           url: result.secure_url,
           public_id: result.public_id,
           caption: '',
           user: req.user.id,
-          journal: journal._id
+          journal: journal._id,
+          fileSize: result.bytes || 0,
+          mimeType: file.mimetype
         });
-        
-        mediaIds.push(media._id);
-        
-        // Remove file from server after upload
-        fs.unlinkSync(file.path);
-      }
+          
+          // Remove file from server after upload
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+          
+          return media._id;
+        } catch (error) {
+          // Clean up file if upload fails
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+          throw error;
+        }
+      });
       
-      // Update journal with media IDs
-      if (mediaIds.length > 0) {
-        await Journal.findByIdAndUpdate(journal._id, {
-          media: mediaIds
-        });
-      }
+      // Wait for all media uploads to complete
+      const uploadedMediaIds = await Promise.all(mediaPromises);
+      mediaIds.push(...uploadedMediaIds);
+    }
+    
+    // Update journal with media IDs if any were uploaded
+    if (mediaIds.length > 0) {
+      await Journal.findByIdAndUpdate(journal._id, {
+        media: mediaIds
+      });
     }
     
     // Get the updated journal with media
-    const updatedJournal = await Journal.findById(journal._id).populate('media');
+    const updatedJournal = await Journal.findById(journal._id)
+      .populate('media', 'url type public_id')
+      .lean();
     
     res.status(201).json({
       success: true,
       data: updatedJournal
     });
   } catch (err) {
-    console.error(err);
-    // Remove files from server if there's an error
+    console.error('Error creating journal with media:', err);
+    
+    // Clean up any uploaded files if there's an error
     if (req.files) {
       req.files.forEach(file => {
         if (fs.existsSync(file.path)) {
@@ -287,9 +336,10 @@ exports.createJournalWithMedia = async (req, res) => {
         }
       });
     }
+    
     res.status(500).json({
       success: false,
-      error: 'Server Error'
+      error: err.message || 'Server Error'
     });
   }
 };

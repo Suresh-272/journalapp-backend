@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const MediaSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['image', 'audio'],
+    enum: ['image', 'audio', 'video'],
     required: true
   },
   url: {
@@ -15,7 +15,9 @@ const MediaSchema = new mongoose.Schema({
     required: true
   },
   caption: {
-    type: String
+    type: String,
+    trim: true,
+    maxlength: [200, 'Caption cannot be more than 200 characters']
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -26,10 +28,22 @@ const MediaSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Journal'
   },
+  fileSize: {
+    type: Number,
+    default: 0
+  },
+  mimeType: {
+    type: String
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
+
+// Add indexes for better query performance
+MediaSchema.index({ user: 1, createdAt: -1 });
+MediaSchema.index({ journal: 1, type: 1 });
+MediaSchema.index({ public_id: 1 });
 
 module.exports = mongoose.model('Media', MediaSchema);
