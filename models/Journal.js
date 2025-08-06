@@ -41,6 +41,21 @@ const JournalSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  // New fields for entry protection
+  isProtected: {
+    type: Boolean,
+    default: false
+  },
+  protectionType: {
+    type: String,
+    enum: ['password', 'biometric', null],
+    default: null
+  },
+  // Store hashed password for password-protected entries
+  passwordHash: {
+    type: String,
+    select: false // Don't include in query results by default
   }
 });
 
