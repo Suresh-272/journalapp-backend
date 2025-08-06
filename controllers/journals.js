@@ -343,3 +343,147 @@ exports.createJournalWithMedia = async (req, res) => {
     });
   }
 };
+
+// @desc    Get mood analytics for a user
+// @route   GET /api/journals/mood-analytics
+// @access  Private
+exports.getMoodAnalytics = async (req, res) => {
+  try {
+    const { timeFilter = 'week' } = req.query;
+    
+    // Calculate date range based on filter
+    const now = new Date();
+    let startDate;
+    
+    switch (timeFilter) {
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'all':
+        startDate = new Date(0); // Beginning of time
+        break;
+      default:
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    }
+
+    // Get journal entries with mood data
+    const journals = await Journal.find({
+      user: req.user.id,
+      createdAt: { $gte: startDate },
+      mood: { $exists: true, $ne: 'other' }
+    })
+    .select('mood createdAt')
+    .sort({ createdAt: 1 })
+    .lean();
+
+    // Calculate analytics
+    const moodCounts = {};
+    const moodValues = {
+      'sad': 1,
+      'anxious': 2,
+      'neutral': 3,
+      'calm': 4,
+      'happy': 5,
+      'excited': 5
+    };
+
+    let totalMoodValue = 0;
+    let entryCount = 0;
+
+    journals.forEach(journal => {
+      const mood = journal.mood;
+      moodCounts[mood] = (moodCounts[mood] || 0) + 1;
+      
+      if (moodValues[mood]) {
+        totalMoodValue += moodValues[mood];
+        entryCount++;
+      }
+    });
+
+    // Calculate most frequent mood
+    let mostFrequentMood = null;
+    let maxCount = 0;
+    Object.keys(moodCounts).forEach(mood => {
+      if (moodCounts[mood] > maxCount) {
+        maxCount = moodCounts[mood];
+        mostFrequentMood = mood;
+      }
+    });
+
+    // Calculate average mood
+    const averageMood = entryCount > 0 ? totalMoodValue / entryCount : 0;
+
+    // Calculate streaks
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 0;
+
+    if (journals.length > 0) {
+      // Check if last entry was today or yesterday
+      const lastEntry = new Date(journals[journals.length - 1].createdAt);
+      const daysDiff = Math.floor((now.getTime() - lastEntry.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff <= 1) {
+        currentStreak = 1;
+        
+        // Calculate current streak
+        for (let i = journals.length - 2; i >= 0; i--) {
+          const currentDate = new Date(journals[i + 1].createdAt);
+          const prevDate = new Date(journals[i].createdAt);
+          const diff = Math.floor((currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (diff === 1) {
+            currentStreak++;
+          } else {
+            break;
+          }
+        }
+      }
+
+      // Calculate longest streak
+      for (let i = 1; i < journals.length; i++) {
+        const currentDate = new Date(journals[i].createdAt);
+        const prevDate = new Date(journals[i - 1].createdAt);
+        const diff = Math.floor((currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (diff === 1) {
+          tempStreak++;
+        } else {
+          longestStreak = Math.max(longestStreak, tempStreak);
+          tempStreak = 1;
+        }
+      }
+      longestStreak = Math.max(longestStreak, tempStreak);
+    }
+
+    // Prepare chart data
+    const chartData = journals.slice(-10).map(journal => ({
+      date: journal.createdAt.toISOString().split('T')[0],
+      mood: moodValues[journal.mood] || 3,
+      label: journal.mood
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalEntries: journals.length,
+        averageMood: Number(averageMood.toFixed(1)),
+        mostFrequentMood,
+        currentStreak,
+        longestStreak,
+        moodCounts,
+        chartData,
+        timeFilter
+      }
+    });
+  } catch (err) {
+    console.error('Error getting mood analytics:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Server Error'
+    });
+  }
+};

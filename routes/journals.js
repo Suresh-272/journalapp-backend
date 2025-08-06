@@ -5,7 +5,8 @@ const {
   createJournal,
   updateJournal,
   deleteJournal,
-  createJournalWithMedia
+  createJournalWithMedia,
+  getMoodAnalytics
 } = require('../controllers/journals');
 
 const { protect } = require('../middleware/auth');
@@ -19,6 +20,9 @@ router.route('/')
 
 router.route('/with-media')
   .post(protect, upload.array('files', 10), createJournalWithMedia);
+
+router.route('/mood-analytics')
+  .get(protect, getMoodAnalytics);
 
 router.route('/:id')
   .get(protect, getJournal)
