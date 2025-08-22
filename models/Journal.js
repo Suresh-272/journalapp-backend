@@ -11,6 +11,15 @@ const JournalSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please add content'],
   },
+  // Encrypted content for protected entries
+  encryptedContent: {
+    type: String,
+    default: null
+  },
+  encryptionIV: {
+    type: String,
+    default: null
+  },
   category: {
     type: String,
     enum: ['personal', 'professional'],
@@ -38,24 +47,22 @@ const JournalSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  // New fields for entry protection
+  // Privacy and security fields
   isProtected: {
     type: Boolean,
     default: false
   },
-  protectionType: {
-    type: String,
-    enum: ['password', 'biometric', null],
-    default: null
-  },
-  // Store hashed password for password-protected entries
   passwordHash: {
     type: String,
-    select: false // Don't include in query results by default
+    default: null
+  },
+  salt: {
+    type: String,
+    default: null
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
   }
 });
 

@@ -2,6 +2,14 @@ const Journal = require('../models/Journal');
 const Media = require('../models/Media');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs');
+const { 
+  generateSalt, 
+  hashPassword, 
+  verifyPassword, 
+  encryptContent, 
+  decryptContent, 
+  generateKeyFromPassword 
+} = require('../utils/encryption');
 
 // @desc    Create new journal entry
 // @route   POST /api/journals
@@ -79,6 +87,15 @@ exports.getJournals = async (req, res) => {
       .skip(startIndex)
       .limit(limit);
 
+    // Handle protected entries in the list
+    const processedJournals = journals.map(journal => {
+      const journalData = journal.toObject();
+      if (journalData.isProtected) {
+        journalData.content = '[Protected Entry]';
+      }
+      return journalData;
+    });
+
     // Pagination result
     const pagination = {};
 
@@ -98,9 +115,9 @@ exports.getJournals = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      count: journals.length,
+      count: processedJournals.length,
       pagination,
-      data: journals
+      data: processedJournals
     });
   } catch (err) {
     console.error(err);
@@ -133,10 +150,22 @@ exports.getJournal = async (req, res) => {
       });
     }
 
-    res.status(200).json({
-      success: true,
-      data: journal
-    });
+    // If journal is protected, return placeholder content
+    if (journal.isProtected) {
+      const journalData = journal.toObject();
+      journalData.content = '[Protected Entry]';
+      journalData.isProtected = true;
+      
+      res.status(200).json({
+        success: true,
+        data: journalData
+      });
+    } else {
+      res.status(200).json({
+        success: true,
+        data: journal
+      });
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({
@@ -232,7 +261,7 @@ exports.createJournalWithMedia = async (req, res) => {
     req.body.user = req.user.id;
     
     // Extract and validate journal data from request body
-    const { title, content, mood, tags, location, category } = req.body;
+    const { title, content, mood, tags, location, category, isProtected, password } = req.body;
     
     // Validate category
     if (!category || !['personal', 'professional'].includes(category)) {
@@ -242,8 +271,8 @@ exports.createJournalWithMedia = async (req, res) => {
       });
     }
     
-    // Create journal entry with proper category
-    const journal = await Journal.create({
+    // Handle protection if enabled
+    let journalData = {
       title: title || 'Untitled Entry',
       content: content || '',
       category: category, // Ensure category is properly set
@@ -251,7 +280,28 @@ exports.createJournalWithMedia = async (req, res) => {
       tags: tags ? JSON.parse(tags) : [],
       location: location || '',
       user: req.user.id
-    });
+    };
+
+    // If protection is enabled, encrypt the content
+    if (isProtected === 'true' && password) {
+      const salt = generateSalt();
+      const passwordHash = await hashPassword(password, salt);
+      const encryptionKey = generateKeyFromPassword(password, salt);
+      const { encrypted, iv } = encryptContent(content || '', encryptionKey);
+      
+      journalData = {
+        ...journalData,
+        isProtected: true,
+        passwordHash,
+        salt,
+        encryptedContent: encrypted,
+        encryptionIV: iv,
+        content: '[Protected Entry]' // Replace with placeholder
+      };
+    }
+
+    // Create journal entry
+    const journal = await Journal.create(journalData);
     
     const mediaIds = [];
     
@@ -481,6 +531,197 @@ exports.getMoodAnalytics = async (req, res) => {
     });
   } catch (err) {
     console.error('Error getting mood analytics:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Server Error'
+    });
+  }
+};
+
+// @desc    Protect journal entry with password
+// @route   POST /api/journals/:id/protect
+// @access  Private
+exports.protectJournal = async (req, res) => {
+  try {
+    const { password } = req.body;
+    
+    if (!password || password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 6 characters long'
+      });
+    }
+
+    const journal = await Journal.findById(req.params.id);
+
+    if (!journal) {
+      return res.status(404).json({
+        success: false,
+        error: 'Journal not found'
+      });
+    }
+
+    // Make sure user owns journal
+    if (journal.user.toString() !== req.user.id) {
+      return res.status(401).json({
+        success: false,
+        error: 'Not authorized to protect this journal'
+      });
+    }
+
+    // Generate salt and hash password
+    const salt = generateSalt();
+    const passwordHash = await hashPassword(password, salt);
+    
+    // Generate encryption key and encrypt content
+    const encryptionKey = generateKeyFromPassword(password, salt);
+    const { encrypted, iv } = encryptContent(journal.content, encryptionKey);
+
+    // Update journal with protection
+    journal.isProtected = true;
+    journal.passwordHash = passwordHash;
+    journal.salt = salt;
+    journal.encryptedContent = encrypted;
+    journal.encryptionIV = iv;
+    journal.content = '[Protected Entry]'; // Replace with placeholder
+
+    await journal.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Journal entry protected successfully'
+    });
+  } catch (err) {
+    console.error('Error protecting journal:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Server Error'
+    });
+  }
+};
+
+// @desc    Unlock protected journal entry
+// @route   POST /api/journals/:id/unlock
+// @access  Private
+exports.unlockJournal = async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    const journal = await Journal.findById(req.params.id);
+
+    if (!journal) {
+      return res.status(404).json({
+        success: false,
+        error: 'Journal not found'
+      });
+    }
+
+    // Make sure user owns journal
+    if (journal.user.toString() !== req.user.id) {
+      return res.status(401).json({
+        success: false,
+        error: 'Not authorized to access this journal'
+      });
+    }
+
+    if (!journal.isProtected) {
+      return res.status(400).json({
+        success: false,
+        error: 'Journal entry is not protected'
+      });
+    }
+
+    // Verify password
+    const isValidPassword = await verifyPassword(password, journal.salt, journal.passwordHash);
+    
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        error: 'Incorrect password'
+      });
+    }
+
+    // Decrypt content
+    const encryptionKey = generateKeyFromPassword(password, journal.salt);
+    const decryptedContent = decryptContent(journal.encryptedContent, encryptionKey, journal.encryptionIV);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...journal.toObject(),
+        content: decryptedContent
+      }
+    });
+  } catch (err) {
+    console.error('Error unlocking journal:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Server Error'
+    });
+  }
+};
+
+// @desc    Remove protection from journal entry
+// @route   POST /api/journals/:id/unprotect
+// @access  Private
+exports.unprotectJournal = async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    const journal = await Journal.findById(req.params.id);
+
+    if (!journal) {
+      return res.status(404).json({
+        success: false,
+        error: 'Journal not found'
+      });
+    }
+
+    // Make sure user owns journal
+    if (journal.user.toString() !== req.user.id) {
+      return res.status(401).json({
+        success: false,
+        error: 'Not authorized to modify this journal'
+      });
+    }
+
+    if (!journal.isProtected) {
+      return res.status(400).json({
+        success: false,
+        error: 'Journal entry is not protected'
+      });
+    }
+
+    // Verify password
+    const isValidPassword = await verifyPassword(password, journal.salt, journal.passwordHash);
+    
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        error: 'Incorrect password'
+      });
+    }
+
+    // Decrypt content and remove protection
+    const encryptionKey = generateKeyFromPassword(password, journal.salt);
+    const decryptedContent = decryptContent(journal.encryptedContent, encryptionKey, journal.encryptionIV);
+
+    journal.isProtected = false;
+    journal.passwordHash = null;
+    journal.salt = null;
+    journal.encryptedContent = null;
+    journal.encryptionIV = null;
+    journal.content = decryptedContent;
+
+    await journal.save();
+
+    res.status(200).json({
+      success: true,
+      data: journal,
+      message: 'Journal entry protection removed successfully'
+    });
+  } catch (err) {
+    console.error('Error removing protection:', err);
     res.status(500).json({
       success: false,
       error: err.message || 'Server Error'

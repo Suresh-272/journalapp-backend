@@ -6,7 +6,10 @@ const {
   updateJournal,
   deleteJournal,
   createJournalWithMedia,
-  getMoodAnalytics
+  getMoodAnalytics,
+  protectJournal,
+  unlockJournal,
+  unprotectJournal
 } = require('../controllers/journals');
 
 const { protect } = require('../middleware/auth');
@@ -28,5 +31,14 @@ router.route('/:id')
   .get(protect, getJournal)
   .put(protect, updateJournal)
   .delete(protect, deleteJournal);
+
+router.route('/:id/protect')
+  .post(protect, protectJournal);
+
+router.route('/:id/unlock')
+  .post(protect, unlockJournal);
+
+router.route('/:id/unprotect')
+  .post(protect, unprotectJournal);
 
 module.exports = router;
